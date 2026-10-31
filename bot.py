@@ -17,8 +17,8 @@ SERVICES = {
     "wa": {"name": "WhatsApp", "icon": "💬"}
 }
 
-# Country Catalog with Prices (INR)
-COUNTRIES = [
+# Website par available saari popular countries ka complete catalog (ID, Name, Flag, TG Price, WA Price)
+ALL_COUNTRIES = [
     {"id": "22", "name": "India", "flag": "🇮🇳", "tg": 45, "wa": 55},
     {"id": "2",  "name": "Kazakhstan", "flag": "🇰🇿", "tg": 38, "wa": 48},
     {"id": "0",  "name": "Russia", "flag": "🇷🇺", "tg": 42, "wa": 50},
@@ -26,16 +26,31 @@ COUNTRIES = [
     {"id": "3",  "name": "China", "flag": "🇨🇳", "tg": 35, "wa": 45},
     {"id": "6",  "name": "Indonesia", "flag": "🇮🇩", "tg": 40, "wa": 50},
     {"id": "10", "name": "Vietnam", "flag": "🇻🇳", "tg": 42, "wa": 52},
-    {"id": "96", "name": "Zimbabwe", "flag": "🇿🇼", "tg": 40, "wa": 50},
-    {"id": "63", "name": "Czech Rep.", "flag": "🇨🇿", "tg": 48, "wa": 58},
-    {"id": "107","name": "S. Africa", "flag": "🇿🇦", "tg": 45, "wa": 55},
+    {"id": "4",  "name": "Philippines", "flag": "🇵🇭", "tg": 45, "wa": 55},
+    {"id": "5",  "name": "Myanmar", "flag": "🇲🇲", "tg": 40, "wa": 50},
+    {"id": "7",  "name": "Malaysia", "flag": "🇲🇾", "tg": 48, "wa": 58},
+    {"id": "8",  "name": "Kenya", "flag": "🇰🇪", "tg": 42, "wa": 52},
+    {"id": "11", "name": "Kyrgyzstan", "flag": "🇰🇬", "tg": 40, "wa": 50},
+    {"id": "13", "name": "Israel", "flag": "🇮🇱", "tg": 55, "wa": 65},
+    {"id": "14", "name": "Hong Kong", "flag": "🇭🇰", "tg": 50, "wa": 60},
+    {"id": "15", "name": "Poland", "flag": "🇵🇱", "tg": 45, "wa": 55},
+    {"id": "16", "name": "UK", "flag": "🇬🇧", "tg": 55, "wa": 65},
+    {"id": "24", "name": "Cambodia", "flag": "🇰🇭", "tg": 42, "wa": 52},
     {"id": "26", "name": "Colombia", "flag": "🇨🇴", "tg": 50, "wa": 60},
-    {"id": "158","name": "Armenia", "flag": "🇦🇲", "tg": 52, "wa": 62},
+    {"id": "32", "name": "Romania", "flag": "🇷🇴", "tg": 48, "wa": 58},
     {"id": "34", "name": "Chile", "flag": "🇨🇱", "tg": 50, "wa": 60},
+    {"id": "36", "name": "Canada", "flag": "🇨🇦", "tg": 55, "wa": 65},
+    {"id": "48", "name": "Netherlands", "flag": "🇳🇱", "tg": 55, "wa": 65},
+    {"id": "63", "name": "Czech Rep.", "flag": "🇨🇿", "tg": 48, "wa": 58},
     {"id": "85", "name": "Moldova", "flag": "🇲🇩", "tg": 55, "wa": 65},
+    {"id": "96", "name": "Zimbabwe", "flag": "🇿🇼", "tg": 40, "wa": 50},
+    {"id": "107","name": "S. Africa", "flag": "🇿🇦", "tg": 45, "wa": 55},
+    {"id": "158","name": "Armenia", "flag": "🇦🇲", "tg": 52, "wa": 62},
     {"id": "316","name": "Georgia", "flag": "🇬🇪", "tg": 60, "wa": 70},
     {"id": "464","name": "Uzbekistan", "flag": "🇺🇿", "tg": 75, "wa": 85}
 ]
+
+ITEMS_PER_PAGE = 8  # Har page par 8 countries dikhengi
 # =================================================
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -94,8 +109,8 @@ def set_referrer(uid, ref_id):
 def get_service_menu():
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
-        InlineKeyboardButton("✈️ Telegram OTP", callback_data="svc_tg"),
-        InlineKeyboardButton("💬 WhatsApp OTP", callback_data="svc_wa")
+        InlineKeyboardButton("✈️ Telegram OTP", callback_data="page_tg_0"),
+        InlineKeyboardButton("💬 WhatsApp OTP", callback_data="page_wa_0")
     )
     markup.add(
         InlineKeyboardButton("💰 Wallet Balance", callback_data="menu_bal"),
@@ -106,10 +121,15 @@ def get_service_menu():
     )
     return markup
 
-def get_countries_menu(service):
+def get_countries_paged_menu(service, page=0):
     markup = InlineKeyboardMarkup(row_width=2)
+    start_idx = page * ITEMS_PER_PAGE
+    end_idx = start_idx + ITEMS_PER_PAGE
+    current_list = ALL_COUNTRIES[start_idx:end_idx]
+    total_pages = (len(ALL_COUNTRIES) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
+
     btns = []
-    for c in COUNTRIES:
+    for c in current_list:
         cid = c["id"]
         price = c[service]
         btn_text = f"{c['flag']} {c['name']} | ₹{price}"
@@ -118,7 +138,16 @@ def get_countries_menu(service):
     for i in range(0, len(btns), 2):
         markup.row(*btns[i:i+2])
 
-    markup.add(InlineKeyboardButton("⬅️ Back to Main Menu", callback_data="back_main"))
+    # Navigation buttons (Previous / Next)
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"page_{service}_{page-1}"))
+    nav_row.append(InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="ignore"))
+    if end_idx < len(ALL_COUNTRIES):
+        nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"page_{service}_{page+1}"))
+    
+    markup.row(*nav_row)
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="back_main"))
     return markup
 
 def get_deposit_menu():
@@ -154,7 +183,7 @@ def start(m):
 
 @bot.message_handler(commands=["stock"])
 def stock_cmd(m):
-    bot.reply_to(m, "Sabhi countries ka stock available hai! /start dabakar apni pasand ki country choose karein.")
+    bot.reply_to(m, "Sabhi countries ka stock available hai! /start dabakar list check karein.")
 
 @bot.message_handler(commands=["balance"])
 def balance(m):
@@ -169,7 +198,7 @@ def refer_cmd(m):
     total_refs = cur.fetchone()[0]
     text = (
         f"<b>Refer & Earn Program</b>\n\n"
-        f"Apne dosto ko bot share karein. Har deposit par <b>5% Commission</b> direct wallet me payein!\n\n"
+        f"Har deposit par <b>5% Commission</b> direct wallet me payein!\n\n"
         f"Total Referrals: <b>{total_refs}</b>\n\n"
         f"Aapka Referral Link:\n<code>{ref_link}</code>"
     )
@@ -177,7 +206,7 @@ def refer_cmd(m):
 
 @bot.message_handler(commands=["deposit"])
 def dep(m):
-    bot.reply_to(m, "Amount select karein ya direct amount likh kar bhejein:", reply_markup=get_deposit_menu(), parse_mode="HTML")
+    bot.reply_to(m, "Amount select karein ya direct amount type karein:", reply_markup=get_deposit_menu(), parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: not m.text.startswith("/"))
 def text_flow(m):
@@ -192,8 +221,8 @@ def text_flow(m):
         user_dep_amt[uid] = amt
         reply = (
             f"<b>Deposit Amount: ₹{amt:.2f}</b>\n\n"
-            f"UPI par pay karein: <code>{UPI_ID}</code>\n\n"
-            f"Payment ke baad 12-digit UTR number ya payment Screenshot bhejein!\n\n"
+            f"UPI ID: <code>{UPI_ID}</code>\n\n"
+            f"Payment ke baad 12-digit UTR number ya screenshot bhejein!\n\n"
             f"Support: {ADMIN_USERNAME}"
         )
         bot.reply_to(m, reply, parse_mode="HTML")
@@ -211,7 +240,7 @@ def text_flow(m):
         f"UTR: <code>{raw}</code>"
     )
     bot.send_message(ADMIN_ID, admin_msg, reply_markup=mk, parse_mode="HTML")
-    bot.reply_to(m, f"Payment proof mil gaya! 5-10 minute me check karke balance add ho jayega.\nSupport: {ADMIN_USERNAME}", parse_mode="HTML")
+    bot.reply_to(m, f"Proof mil gaya! Admin verify karke balance add kar dega.\nSupport: {ADMIN_USERNAME}", parse_mode="HTML")
 
 @bot.message_handler(content_types=['photo'])
 def photo_flow(m):
@@ -231,7 +260,7 @@ def photo_flow(m):
         f"Caption: <code>{cap}</code>"
     )
     bot.send_photo(ADMIN_ID, m.photo[-1].file_id, caption=admin_cap, reply_markup=mk, parse_mode="HTML")
-    bot.reply_to(m, f"Screenshot mil gaya! Admin verification ke baad balance add ho jayega.\nSupport: {ADMIN_USERNAME}", parse_mode="HTML")
+    bot.reply_to(m, f"Screenshot mil gaya! Verification ke baad balance add ho jayega.\nSupport: {ADMIN_USERNAME}", parse_mode="HTML")
 
 def poll_otp(cid, uid, activation_id, price):
     status_url = f"{BASE_URL}?api_key={SASTA_API_KEY}&action=getStatus&id={activation_id}&format=json"
@@ -261,32 +290,36 @@ def poll_otp(cid, uid, activation_id, price):
     except:
         pass
     update_bal(uid, price)
-    bot.send_message(cid, "Timeout: OTP nahi aaya. Order cancel karke paise wallet me wapas refund kar diye gaye hain.")
+    bot.send_message(cid, "Timeout: OTP nahi aaya. Balance aapke wallet me refund kar diya gaya hai.")
 
 @bot.callback_query_handler(func=lambda call: True)
 def callbacks(call):
     uid = call.from_user.id
     bal = get_bal(uid)
-    if call.data == "back_main":
+    if call.data == "ignore":
+        bot.answer_callback_query(call.id)
+    elif call.data == "back_main":
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=f"Wallet Balance: <b>₹{bal:.2f}</b>\nSupport: {ADMIN_USERNAME}\n\nNeeche se service choose karein:",
+            text=f"Wallet Balance: <b>₹{bal:.2f}</b>\nSupport: {ADMIN_USERNAME}\n\nNeeche se apni service choose karein:",
             reply_markup=get_service_menu(),
             parse_mode="HTML"
         )
-    elif call.data.startswith("svc_"):
-        service = call.data.split("_")[1]
+    elif call.data.startswith("page_"):
+        parts = call.data.split("_")
+        service = parts[1]
+        page = int(parts[2])
         s_name = SERVICES.get(service, {}).get("name", "Service")
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text=f"Selected: <b>{s_name}</b>\n\nNeeche se country choose karein:",
-            reply_markup=get_countries_menu(service),
+            reply_markup=get_countries_paged_menu(service, page),
             parse_mode="HTML"
         )
     elif call.data == "menu_bal":
-        bot.answer_callback_query(call.id, f"Aapka Balance: ₹{bal:.2f}", show_alert=True)
+        bot.answer_callback_query(call.id, f"Current Balance: ₹{bal:.2f}", show_alert=True)
     elif call.data == "menu_ref":
         bu = bot.get_me().username
         cur.execute("SELECT COUNT(*) FROM users WHERE referred_by = ?", (uid,))
@@ -302,7 +335,7 @@ def callbacks(call):
         user_dep_amt[uid] = a
         reply = (
             f"<b>Deposit Amount: ₹{a:.2f}</b>\n\n"
-            f"UPI par pay karein: <code>{UPI_ID}</code>\n\n"
+            f"UPI ID: <code>{UPI_ID}</code>\n\n"
             f"Payment ke baad 12-digit UTR ya screenshot bhejein!\n\n"
             f"Support: {ADMIN_USERNAME}"
         )
@@ -321,7 +354,7 @@ def callbacks(call):
         else:
             bot.edit_message_text(text=msg, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="HTML")
         try:
-            bot.send_message(target, f"<b>Payment Approved!</b>\nWallet me ₹{amt:.2f} add ho gaye hain.\nCurrent Balance: ₹{nb:.2f}", parse_mode="HTML")
+            bot.send_message(target, f"<b>Payment Approved!</b>\nWallet me ₹{amt:.2f} add ho gaye hain.\nBalance: ₹{nb:.2f}", parse_mode="HTML")
         except:
             pass
         _, ref_by = get_user(target)
@@ -330,7 +363,7 @@ def callbacks(call):
             if comm > 0:
                 rb = update_bal(ref_by, comm)
                 try:
-                    bot.send_message(ref_by, f"<b>Referral Commission!</b>\nReferral user ne ₹{amt} deposit kiye.\n5% Commission (+₹{comm}) mila!\nBalance: ₹{rb}", parse_mode="HTML")
+                    bot.send_message(ref_by, f"<b>Referral Commission!</b>\nReferral ne deposit kiya, ₹{comm} commission mila!\nBalance: ₹{rb}", parse_mode="HTML")
                 except:
                     pass
     elif call.data.startswith("rej_"):
@@ -343,7 +376,7 @@ def callbacks(call):
         else:
             bot.edit_message_text(text=m, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="HTML")
         try:
-            bot.send_message(tu, "Payment request reject kar di gayi hai.")
+            bot.send_message(tu, "Deposit request reject ho gaya hai.")
         except:
             pass
     elif call.data.startswith("buy_"):
@@ -358,7 +391,7 @@ def callbacks(call):
             return
 
         bot.answer_callback_query(call.id, f"Ordering {s_name}...")
-        bot.send_message(call.message.chat.id, f"{s_name} number manga rahe hain, thoda wait karein...")
+        bot.send_message(call.message.chat.id, f"{s_name} number book ho raha hai, please wait...")
 
         req_url = f"{BASE_URL}?api_key={SASTA_API_KEY}&action=getNumber&service={service}&country={code}&format=json"
         try:
@@ -372,7 +405,7 @@ def callbacks(call):
         phone = res.get("phone") or res.get("number")
 
         if not phone or not activation_id:
-            err = res.get("error") or res.get("msg") or "Is country ka number filhal stock me nahi hai."
+            err = res.get("error") or res.get("msg") or "Is country me filhal stock nahi hai."
             bot.send_message(call.message.chat.id, f"Failed: {err}")
             return
 
@@ -380,5 +413,5 @@ def callbacks(call):
         bot.send_message(call.message.chat.id, f"<b>{s_name} Number:</b> <code>+{phone}</code>\nDeducted: ₹{int(p)}\nWaiting for OTP...", parse_mode="HTML")
         threading.Thread(target=poll_otp, args=(call.message.chat.id, uid, activation_id, p)).start()
 
-print(">> BOT RUNNING WITH FULL HINGLISH SUPPORT <<")
+print(">> BOT RUNNING WITH FULL PAGINATION AND HINGLISH <<")
 bot.infinity_polling(skip_pending=True)
