@@ -1,5 +1,10 @@
-import os, time, threading, requests, sqlite3, telebot
+import os
+import time
+import threading
+import sqlite3
 from http.server import HTTPServer, BaseHTTPRequestHandler
+import requests
+import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ================= CONFIGURATION =================
@@ -17,7 +22,6 @@ SERVICES = {
     "wa": {"name": "WhatsApp", "icon": "💬"}
 }
 
-# Website par available saari popular countries ka complete catalog (ID, Name, Flag, TG Price, WA Price)
 ALL_COUNTRIES = [
     {"id": "22", "name": "India", "flag": "🇮🇳", "tg": 45, "wa": 55},
     {"id": "2",  "name": "Kazakhstan", "flag": "🇰🇿", "tg": 38, "wa": 48},
@@ -50,7 +54,7 @@ ALL_COUNTRIES = [
     {"id": "464","name": "Uzbekistan", "flag": "🇺🇿", "tg": 75, "wa": 85}
 ]
 
-ITEMS_PER_PAGE = 8  # Har page par 8 countries dikhengi
+ITEMS_PER_PAGE = 8
 # =================================================
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -132,13 +136,12 @@ def get_countries_paged_menu(service, page=0):
     for c in current_list:
         cid = c["id"]
         price = c[service]
-        btn_text = f"{c['flag']} {c['name']} | ₹{price}"
+        btn_text = f"{c['flag']} {c['name']} | Rs {price}"
         btns.append(InlineKeyboardButton(text=btn_text, callback_data=f"buy_{service}_{cid}_{price}"))
 
     for i in range(0, len(btns), 2):
         markup.row(*btns[i:i+2])
 
-    # Navigation buttons (Previous / Next)
     nav_row = []
     if page > 0:
         nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"page_{service}_{page-1}"))
@@ -153,10 +156,10 @@ def get_countries_paged_menu(service, page=0):
 def get_deposit_menu():
     mk = InlineKeyboardMarkup(row_width=2)
     mk.add(
-        InlineKeyboardButton("₹20", callback_data="setdep_20"),
-        InlineKeyboardButton("₹50", callback_data="setdep_50"),
-        InlineKeyboardButton("₹100", callback_data="setdep_100"),
-        InlineKeyboardButton("₹200", callback_data="setdep_200")
+        InlineKeyboardButton("Rs 20", callback_data="setdep_20"),
+        InlineKeyboardButton("Rs 50", callback_data="setdep_50"),
+        InlineKeyboardButton("Rs 100", callback_data="setdep_100"),
+        InlineKeyboardButton("Rs 200", callback_data="setdep_200")
     )
     return mk
 
@@ -169,12 +172,12 @@ def start(m):
         try:
             ref_id = int(parts[1].replace("ref_", ""))
             set_referrer(uid, ref_id)
-        except:
+        except Exception:
             pass
     bal = get_bal(uid)
     text = (
         f"Namaste <b>{name}</b>!\n\n"
-        f"Wallet Balance: <b>₹{bal:.2f}</b>\n"
+        f"Wallet Balance: <b>Rs {bal:.2f}</b>\n"
         f"User ID: <code>{uid}</code>\n"
         f"Support: {ADMIN_USERNAME}\n\n"
         f"Neeche se apni service choose karein:"
@@ -183,11 +186,11 @@ def start(m):
 
 @bot.message_handler(commands=["stock"])
 def stock_cmd(m):
-    bot.reply_to(m, "Sabhi countries ka stock available hai! /start dabakar list check karein.")
+    bot.reply_to(m, "Sabhi countries ka stock live available hai! /start dabakar check karein.")
 
 @bot.message_handler(commands=["balance"])
 def balance(m):
-    bot.reply_to(m, f"Aapka Wallet Balance: ₹{get_bal(m.from_user.id):.2f}")
+    bot.reply_to(m, f"Aapka Wallet Balance: Rs {get_bal(m.from_user.id):.2f}")
 
 @bot.message_handler(commands=["refer"])
 def refer_cmd(m):
@@ -206,7 +209,7 @@ def refer_cmd(m):
 
 @bot.message_handler(commands=["deposit"])
 def dep(m):
-    bot.reply_to(m, "Amount select karein ya direct amount type karein:", reply_markup=get_deposit_menu(), parse_mode="HTML")
+    bot.reply_to(m, "Amount select karein ya direct type karein:", reply_markup=get_deposit_menu(), parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: not m.text.startswith("/"))
 def text_flow(m):
@@ -216,11 +219,11 @@ def text_flow(m):
     if raw.isdigit():
         amt = float(raw)
         if amt < 20:
-            bot.reply_to(m, "Minimum deposit ₹20 hai.")
+            bot.reply_to(m, "Minimum deposit Rs 20 hai.")
             return
         user_dep_amt[uid] = amt
         reply = (
-            f"<b>Deposit Amount: ₹{amt:.2f}</b>\n\n"
+            f"<b>Deposit Amount: Rs {amt:.2f}</b>\n\n"
             f"UPI ID: <code>{UPI_ID}</code>\n\n"
             f"Payment ke baad 12-digit UTR number ya screenshot bhejein!\n\n"
             f"Support: {ADMIN_USERNAME}"
@@ -230,13 +233,13 @@ def text_flow(m):
     amt = user_dep_amt.get(uid, 20.0)
     mk = InlineKeyboardMarkup()
     mk.row(
-        InlineKeyboardButton(f"Approve ₹{int(amt)}", callback_data=f"app_{uid}_{amt}"),
+        InlineKeyboardButton(f"Approve Rs {int(amt)}", callback_data=f"app_{uid}_{amt}"),
         InlineKeyboardButton("Reject", callback_data=f"rej_{uid}")
     )
     admin_msg = (
         f"<b>Naya UTR Deposit Request!</b>\n"
         f"User: <b>{name}</b> (<code>{uid}</code>)\n"
-        f"Amount: <b>₹{amt:.2f}</b>\n"
+        f"Amount: <b>Rs {amt:.2f}</b>\n"
         f"UTR: <code>{raw}</code>"
     )
     bot.send_message(ADMIN_ID, admin_msg, reply_markup=mk, parse_mode="HTML")
@@ -250,13 +253,13 @@ def photo_flow(m):
     name = m.from_user.first_name or "User"
     mk = InlineKeyboardMarkup()
     mk.row(
-        InlineKeyboardButton(f"Approve ₹{int(amt)}", callback_data=f"app_{uid}_{amt}"),
+        InlineKeyboardButton(f"Approve Rs {int(amt)}", callback_data=f"app_{uid}_{amt}"),
         InlineKeyboardButton("Reject", callback_data=f"rej_{uid}")
     )
     admin_cap = (
         f"<b>Naya Screenshot Deposit!</b>\n"
         f"User: <b>{name}</b> (<code>{uid}</code>)\n"
-        f"Amount: <b>₹{amt:.2f}</b>\n"
+        f"Amount: <b>Rs {amt:.2f}</b>\n"
         f"Caption: <code>{cap}</code>"
     )
     bot.send_photo(ADMIN_ID, m.photo[-1].file_id, caption=admin_cap, reply_markup=mk, parse_mode="HTML")
@@ -276,18 +279,18 @@ def poll_otp(cid, uid, activation_id, price):
                     otp = res.get("code") or res.get("sms")
                     bot.send_message(cid, f"<b>OTP Code:</b> <code>{otp}</code>", parse_mode="HTML")
                     return
-            except:
+            except Exception:
                 text_res = r.text
                 if "STATUS_OK" in text_res:
                     otp = text_res.split(":")[-1]
                     bot.send_message(cid, f"<b>OTP Code:</b> <code>{otp}</code>", parse_mode="HTML")
                     return
-        except:
+        except Exception:
             pass
 
     try:
         requests.get(cancel_url, timeout=5)
-    except:
+    except Exception:
         pass
     update_bal(uid, price)
     bot.send_message(cid, "Timeout: OTP nahi aaya. Balance aapke wallet me refund kar diya gaya hai.")
@@ -302,7 +305,7 @@ def callbacks(call):
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=f"Wallet Balance: <b>₹{bal:.2f}</b>\nSupport: {ADMIN_USERNAME}\n\nNeeche se apni service choose karein:",
+            text=f"Wallet Balance: <b>Rs {bal:.2f}</b>\nSupport: {ADMIN_USERNAME}\n\nNeeche se apni service choose karein:",
             reply_markup=get_service_menu(),
             parse_mode="HTML"
         )
@@ -319,7 +322,7 @@ def callbacks(call):
             parse_mode="HTML"
         )
     elif call.data == "menu_bal":
-        bot.answer_callback_query(call.id, f"Current Balance: ₹{bal:.2f}", show_alert=True)
+        bot.answer_callback_query(call.id, f"Current Balance: Rs {bal:.2f}", show_alert=True)
     elif call.data == "menu_ref":
         bu = bot.get_me().username
         cur.execute("SELECT COUNT(*) FROM users WHERE referred_by = ?", (uid,))
@@ -334,7 +337,7 @@ def callbacks(call):
         a = float(call.data.split("_")[1])
         user_dep_amt[uid] = a
         reply = (
-            f"<b>Deposit Amount: ₹{a:.2f}</b>\n\n"
+            f"<b>Deposit Amount: Rs {a:.2f}</b>\n\n"
             f"UPI ID: <code>{UPI_ID}</code>\n\n"
             f"Payment ke baad 12-digit UTR ya screenshot bhejein!\n\n"
             f"Support: {ADMIN_USERNAME}"
@@ -348,14 +351,14 @@ def callbacks(call):
         target = int(tu)
         amt = float(am)
         nb = update_bal(target, amt)
-        msg = f"<b>Approved!</b> User: <code>{target}</code> | Added: ₹{amt} | Bal: ₹{nb:.2f}"
+        msg = f"<b>Approved!</b> User: <code>{target}</code> | Added: Rs {amt} | Bal: Rs {nb:.2f}"
         if call.message.photo:
             bot.edit_message_caption(caption=msg, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="HTML")
         else:
             bot.edit_message_text(text=msg, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="HTML")
         try:
-            bot.send_message(target, f"<b>Payment Approved!</b>\nWallet me ₹{amt:.2f} add ho gaye hain.\nBalance: ₹{nb:.2f}", parse_mode="HTML")
-        except:
+            bot.send_message(target, f"<b>Payment Approved!</b>\nWallet me Rs {amt:.2f} add ho gaye hain.\nBalance: Rs {nb:.2f}", parse_mode="HTML")
+        except Exception:
             pass
         _, ref_by = get_user(target)
         if ref_by and ref_by > 0:
@@ -363,8 +366,8 @@ def callbacks(call):
             if comm > 0:
                 rb = update_bal(ref_by, comm)
                 try:
-                    bot.send_message(ref_by, f"<b>Referral Commission!</b>\nReferral ne deposit kiya, ₹{comm} commission mila!\nBalance: ₹{rb}", parse_mode="HTML")
-                except:
+                    bot.send_message(ref_by, f"<b>Referral Commission!</b>\nReferral ne deposit kiya, Rs {comm} mila!\nBalance: Rs {rb}", parse_mode="HTML")
+                except Exception:
                     pass
     elif call.data.startswith("rej_"):
         if uid != ADMIN_ID:
@@ -377,7 +380,7 @@ def callbacks(call):
             bot.edit_message_text(text=m, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="HTML")
         try:
             bot.send_message(tu, "Deposit request reject ho gaya hai.")
-        except:
+        except Exception:
             pass
     elif call.data.startswith("buy_"):
         parts = call.data.split("_")
@@ -387,7 +390,7 @@ def callbacks(call):
         s_name = SERVICES.get(service, {}).get("name", service.upper())
 
         if bal < p:
-            bot.answer_callback_query(call.id, f"Balance kam hai! Price: ₹{int(p)}, Bal: ₹{bal:.2f}", show_alert=True)
+            bot.answer_callback_query(call.id, f"Balance kam hai! Price: Rs {int(p)}, Bal: Rs {bal:.2f}", show_alert=True)
             return
 
         bot.answer_callback_query(call.id, f"Ordering {s_name}...")
@@ -397,7 +400,7 @@ def callbacks(call):
         try:
             r = requests.get(req_url, timeout=10)
             res = r.json()
-        except:
+        except Exception:
             bot.send_message(call.message.chat.id, "Connection error! Thodi der baad try karein.")
             return
 
@@ -410,7 +413,7 @@ def callbacks(call):
             return
 
         update_bal(uid, -p)
-        bot.send_message(call.message.chat.id, f"<b>{s_name} Number:</b> <code>+{phone}</code>\nDeducted: ₹{int(p)}\nWaiting for OTP...", parse_mode="HTML")
+        bot.send_message(call.message.chat.id, f"<b>{s_name} Number:</b> <code>+{phone}</code>\nDeducted: Rs {int(p)}\nWaiting for OTP...", parse_mode="HTML")
         threading.Thread(target=poll_otp, args=(call.message.chat.id, uid, activation_id, p)).start()
 
 print(">> BOT RUNNING WITH FULL PAGINATION AND HINGLISH <<")
